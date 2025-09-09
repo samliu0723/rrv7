@@ -1,6 +1,34 @@
-.DS_Store
-/node_modules/
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-# React Router
-/.react-router/
-/build/
+# Build outputs
+build/
+dist/
+
+# React Router generated types/cache
+.react-router/
+
+# Vite cache
+node_modules/.vite/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Editors/OS
+.DS_Store
+.idea/
+.vscode/
+
+# Coverage
+coverage/
+
+# Misc
+*.pid
+*.pid.lock
+*.tsbuildinfo

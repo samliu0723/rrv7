@@ -5,4 +5,9 @@ import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
   plugins: [tailwindcss(), reactRouter(), tsconfigPaths()],
+  server: {
+    host: true, // listen on 0.0.0.0 so you can access from your Mac
+    port: 5173,
+    allowedHosts: ["raspberrypi5.local"],
+  },
 });

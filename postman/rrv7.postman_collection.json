@@ -1,0 +1,106 @@
+{
+  "info": {
+    "_postman_id": "7b23a6b4-5c2b-4d2a-92e0-rrv7rs485",
+    "name": "RRV7 RS485 Controller",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Postman requests for listing, opening, writing to, and closing RS485 ports on the Raspberry Pi. Note: Postman does not render Server-Sent Events (SSE) streams; use a browser or curl for the /stream endpoint."
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://raspberrypi5.local:3000" },
+    { "key": "portId", "value": "rs485-1" }
+  ],
+  "item": [
+    {
+      "name": "List Ports",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/ports",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "ports"]
+        }
+      }
+    },
+    {
+      "name": "Open Port",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"baudRate\": 9600\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/ports/{{portId}}/open",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "ports", "{{portId}}", "open"]
+        }
+      }
+    },
+    {
+      "name": "Write Text",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"text\": \"HELLO\\r\\n\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/ports/{{portId}}/write",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "ports", "{{portId}}", "write"]
+        }
+      }
+    },
+    {
+      "name": "Write Hex",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"hex\": \"48 45 4c 4c 4f 0d 0a\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/ports/{{portId}}/write",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "ports", "{{portId}}", "write"]
+        }
+      }
+    },
+    {
+      "name": "Close Port",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/ports/{{portId}}/close",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "ports", "{{portId}}", "close"]
+        }
+      }
+    },
+    {
+      "name": "Stream (SSE) [see note]",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/ports/{{portId}}/stream",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "ports", "{{portId}}", "stream"]
+        },
+        "description": "Postman does not render SSE streams. Use a browser tab or curl: `curl -N {{baseUrl}}/api/ports/{{portId}}/stream`"
+      }
+    }
+  ]
+}
+
