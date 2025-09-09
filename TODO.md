@@ -4,9 +4,9 @@ Project to control two RS485 ports on a Raspberry Pi 5 over the local network. H
 
 ## Goals
 
-- [ ] Control two RS485 ports from any device on same Wi‑Fi.
-- [ ] Stable device naming, reliable open/close, and safe send/receive.
-- [ ] Real‑time logs/stream of serial data to the UI.
+- [✓] Control two RS485 ports from any device on same Wi‑Fi.
+- [✓] Stable device naming, reliable open/close, and safe send/receive.
+- [✓] Real‑time logs/stream of serial data to the UI.
 - [ ] Mobile‑friendly UI with minimal latency and clear feedback.
 
 ## Hardware & OS Prep
@@ -19,7 +19,7 @@ Project to control two RS485 ports on a Raspberry Pi 5 over the local network. H
 ## Stable Serial Port Naming
 
 - [✓] Create `udev` rules to assign persistent symlinks (e.g., `/dev/rs485-1`, `/dev/rs485-2`) based on VID/PID/serial. (Verified: `/dev/rs485-1 -> ttyACM1`, `/dev/rs485-2 -> ttyACM2`)
-- [ ] Document how to discover attributes: `udevadm info --attribute-walk -n /dev/ttyACM1`.
+- [✓] Document how to discover attributes: `udevadm info --attribute-walk -n /dev/ttyACM1`.
 - [✓] Update backend config to use the stable names instead of `ttyACM{N}` (`RS485_PORTS` defaults to `/dev/rs485-1,/dev/rs485-2`).
 
 ## Backend (RRv7 Framework)
@@ -27,22 +27,26 @@ Project to control two RS485 ports on a Raspberry Pi 5 over the local network. H
 - [✓] Use `serialport` package in server‑only modules (`app/server/serial.ts`).
 - [✓] Implement RRv7 route loaders/actions for: list ports, open/close, write.
 - [✓] Streaming: Server‑Sent Events route (`/api/ports/:id/stream`) for live serial data.
-- [ ] Add optional endpoints: flush, drain, set baud at runtime.
+- [✓] Endpoint: set baud at runtime (`POST /api/ports/:id/baud`).
+- [ ] Endpoints: flush; drain.
 - [ ] Add `app/server/serial.ts` manager: single‑writer, multi‑reader; guard concurrent opens.
 - [ ] RS485 specifics: verify half‑duplex direction (RTS) handling if required by adapter.
 - [ ] Timeouts/retry: safe reopen on disconnect; backoff on failures.
 - [ ] Input validation: whitelist baud/parity/data bits; size caps; rate limiting.
 - [ ] Logging: per‑port ring buffer; optional file logs with rotation.
-- [ ] Config: env vars for default baud, allowed ports, SSE heartbeat interval.
+- [✓] Config: env vars for default baud, allowed ports, SSE heartbeat interval.
 
 ## Frontend (RRv7) UI
 
-- [ ] Routes: Home, Ports list, Port detail (console), Settings.
-- [ ] Port list: show `/dev/rs485-1`, `/dev/rs485-2`, status, open/close.
-- [ ] Port console: live log view, send line/hex, quick presets, clear, download log.
+- [✓] Routes: Home, Ports list, Port detail (console).
+- [ ] Route: Settings.
+- [✓] Port list: show `/dev/rs485-1`, `/dev/rs485-2`, status, open/close.
+- [✓] Port console: live log view; send text/hex; RX view Text/Hex; TX show/hide.
+- [ ] Port console: quick presets; clear; download log.
 - [ ] Settings: baud/parity/data bits/stop bits; save per‑port preferences (localStorage).
-- [ ] Connection status indicators and error toasts.
-- [ ] Mobile‑first design; responsive console with sticky input; accessible controls.
+- [✓] Connection status indicator (OPEN/CLOSED pill).
+- [ ] Error toasts and inline error messages.
+- [ ] Mobile‑first: sticky input; further responsive polish; a11y pass.
 
 ## Networking & Access
 
@@ -84,11 +88,12 @@ Project to control two RS485 ports on a Raspberry Pi 5 over the local network. H
 - [ ] API reference (REST + SSE event schema).
 - [ ] Troubleshooting: permissions, udev, `dmesg`, logs location.
 - [ ] Network setup notes (mDNS, static IP option).
+- [✓] Postman collection added (`postman/rrv7.postman_collection.json`).
 
 ## Nice‑to‑Haves
 
 - [ ] Per‑port command presets and history with search.
-- [ ] Hex/ASCII view toggle; CR/LF controls.
+- [✓] Hex/ASCII (RX) view toggle; CR/LF append controls; TX visibility toggle.
 - [ ] Export/import settings and logs.
 - [ ] Multi‑client coordination (who controls write lock).
 
@@ -101,6 +106,6 @@ Project to control two RS485 ports on a Raspberry Pi 5 over the local network. H
 
 ## Acceptance Criteria (MVP)
 
-- [ ] From a phone on the same Wi‑Fi, open the app, see two ports, open one.
+- [✓] From a phone on the same Wi‑Fi, open the app, see two ports, open one.
 - [ ] Send a command and see the response within 200 ms on the console.
 - [ ] Close/reopen without orphaned handles; errors reported clearly.

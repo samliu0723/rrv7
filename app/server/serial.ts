@@ -134,6 +134,18 @@ class SerialManager {
     });
   }
 
+  async setBaud(id: PortId, baudRate: number) {
+    const p = this.get(id);
+    if (!p.open || !p.port) throw new Error(`Port not open: ${id}`);
+    await new Promise<void>((resolve, reject) => {
+      // SerialPort.update is supported by bindings that allow runtime change
+      (p.port as any).update({ baudRate }, (err: any) =>
+        err ? reject(err) : resolve()
+      );
+    });
+    p.emitter.emit("baud", { baudRate });
+  }
+
   // Subscribe to data/events; returns unsubscribe
   on(
     id: PortId,
@@ -168,6 +180,9 @@ export function sseStreamForPort(id: PortId) {
       const unsubErr = serialManager.on(id, "error", (e) =>
         send("error", String(e))
       );
+      const unsubBaud = serialManager.on(id, "baud", (b) =>
+        send("baud", b)
+      );
 
       const iv = setInterval(
         () => controller.enqueue(encoder.encode(`: ping\n\n`)),
@@ -178,6 +193,7 @@ export function sseStreamForPort(id: PortId) {
         unsubOpen();
         unsubClose();
         unsubErr();
+        unsubBaud();
         clearInterval(iv);
         controller.close();
       };
