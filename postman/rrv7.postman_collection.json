@@ -6,7 +6,11 @@
     "description": "Postman requests for listing, opening, writing to, and closing RS485 ports on the Raspberry Pi. Note: Postman does not render Server-Sent Events (SSE) streams; use a browser or curl for the /stream endpoint."
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://raspberrypi5.local:3000" },
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5173",
+      "description": "Dev server default. Switch to http://raspberrypi5.local:3000 when targeting the Pi."
+    },
     { "key": "portId", "value": "rs485-1" }
   ],
   "item": [
@@ -37,6 +41,24 @@
           "raw": "{{baseUrl}}/api/ports/{{portId}}/open",
           "host": ["{{baseUrl}}"],
           "path": ["api", "ports", "{{portId}}", "open"]
+        }
+      }
+    },
+    {
+      "name": "Set Baud",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"baudRate\": 115200\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/ports/{{portId}}/baud",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "ports", "{{portId}}", "baud"]
         }
       }
     },
@@ -100,7 +122,79 @@
         },
         "description": "Postman does not render SSE streams. Use a browser tab or curl: `curl -N {{baseUrl}}/api/ports/{{portId}}/stream`"
       }
+    },
+    {
+      "name": "Automation · Get State",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/automation/state",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "automation", "state"]
+        }
+      }
+    },
+    {
+      "name": "Automation · Save Script",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"script\": \"// paste your automation script here\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/automation/script",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "automation", "script"]
+        }
+      }
+    },
+    {
+      "name": "Automation · Enable",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"portId\": \"{{portId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/automation/enable",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "automation", "enable"]
+        }
+      }
+    },
+    {
+      "name": "Automation · Disable",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/automation/disable",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "automation", "disable"]
+        }
+      }
+    },
+    {
+      "name": "Automation · Stream (SSE)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/automation/stream",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "automation", "stream"]
+        },
+        "description": "Postman does not render SSE streams. Use a browser tab or curl: `curl -N {{baseUrl}}/api/automation/stream`"
+      }
     }
   ]
 }
-

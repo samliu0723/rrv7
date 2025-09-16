@@ -37,6 +37,12 @@ export default function Ports() {
       <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold">RS485 Ports</h1>
         <div className="flex gap-2">
+          <Link
+            to="/automation"
+            className="px-2 py-1 rounded border border-gray-300 hover:bg-gray-50 text-sm"
+          >
+            Automation
+          </Link>
           <button
             className="px-2 py-1 rounded border border-gray-300 hover:bg-gray-50 text-sm"
             onClick={refresh}
