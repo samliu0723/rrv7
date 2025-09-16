@@ -149,7 +149,7 @@ class SerialManager {
   // Subscribe to data/events; returns unsubscribe
   on(
     id: PortId,
-    event: "data" | "open" | "close" | "error",
+    event: "data" | "open" | "close" | "error" | "baud",
     cb: (payload: any) => void
   ) {
     const p = this.get(id);
