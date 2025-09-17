@@ -53,6 +53,36 @@ class AutomationManager {
     this.emitter.setMaxListeners(50);
   }
 
+  private pushLogEntry(
+    type: AutomationLogType,
+    message: string,
+    color?: string
+  ) {
+    this.pushLog({
+      ts: Date.now(),
+      type,
+      message,
+      color,
+    });
+  }
+
+  receiveWrite(message: string, color?: string) {
+    this.pushLogEntry("receive", message, color);
+  }
+
+  receiveWriteLine(message: string, color?: string) {
+    const normalized = message.endsWith("\n") ? message : `${message}\n`;
+    this.receiveWrite(normalized, color);
+  }
+
+  receiveClear() {
+    this.pushLogEntry("receive", "[clear]");
+  }
+
+  receiveClearLast() {
+    this.pushLogEntry("receive", "[clear-last]");
+  }
+
   getState(): AutomationState {
     return {
       script: this.scriptSource,
@@ -78,22 +108,14 @@ class AutomationManager {
     this.enabled = true;
     this.lastError = null;
     this.subscribe(portId);
-    this.pushLog({
-      ts: Date.now(),
-      type: "info",
-      message: `Automation enabled on ${portId}`,
-    });
+    this.pushLogEntry("info", `Automation enabled on ${portId}`);
     this.emitState();
   }
 
   disable() {
     this.enabled = false;
     this.unsubscribe();
-    this.pushLog({
-      ts: Date.now(),
-      type: "info",
-      message: "Automation disabled",
-    });
+    this.pushLogEntry("info", "Automation disabled");
     this.emitState();
   }
 
@@ -118,11 +140,7 @@ class AutomationManager {
       const message = err instanceof Error ? err.message : String(err);
       this.lastError = message;
       this.compiled = null;
-      this.pushLog({
-        ts: Date.now(),
-        type: "error",
-        message: `Compile error: ${message}`,
-      });
+      this.pushLogEntry("error", `Compile error: ${message}`);
     }
   }
 
@@ -155,9 +173,11 @@ class AutomationManager {
     const dataString = raw;
     const dataBytes = Buffer.from(dataString, "utf8");
 
-    const log = (type: AutomationLogType, message: string, color?: string) => {
-      this.pushLog({ ts: Date.now(), type, message, color });
-    };
+    const log = (
+      type: AutomationLogType,
+      message: string,
+      color?: string
+    ) => this.pushLogEntry(type, message, color);
 
     const receive = {
       isFrameStart: false,
@@ -169,11 +189,11 @@ class AutomationManager {
       get: () => dataString,
       getString: () => dataString,
       getBytes: () => new Uint8Array(dataBytes),
-      write: (msg: string, color?: string) => log("receive", msg, color),
+      write: (msg: string, color?: string) => this.receiveWrite(msg, color),
       writeLine: (msg: string, color?: string) =>
-        log("receive", msg.endsWith("\n") ? msg : `${msg}\n`, color),
-      clear: () => log("receive", "[clear]"),
-      clearLastReceived: () => log("receive", "[clear-last]"),
+        this.receiveWriteLine(msg, color),
+      clear: () => this.receiveClear(),
+      clearLastReceived: () => this.receiveClearLast(),
     };
 
     const send = {

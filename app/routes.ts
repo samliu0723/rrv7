@@ -11,6 +11,16 @@ export default [
   route("api/ports/:id/write", "routes/api.ports.$id.write.ts"),
   route("api/ports/:id/baud", "routes/api.ports.$id.baud.ts"),
   route("api/ports/:id/stream", "routes/api.ports.$id.stream.ts"),
+  route("api/ports/:id/receive/write", "routes/api.ports.$id.receive.write.ts"),
+  route(
+    "api/ports/:id/receive/write-line",
+    "routes/api.ports.$id.receive.write-line.ts"
+  ),
+  route("api/ports/:id/receive/clear", "routes/api.ports.$id.receive.clear.ts"),
+  route(
+    "api/ports/:id/receive/clear-last",
+    "routes/api.ports.$id.receive.clear-last.ts"
+  ),
   route("api/automation/state", "routes/api.automation.state.ts"),
   route("api/automation/script", "routes/api.automation.script.ts"),
   route("api/automation/enable", "routes/api.automation.enable.ts"),

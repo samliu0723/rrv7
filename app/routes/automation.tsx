@@ -14,7 +14,7 @@ const commands = [
 ];
 
 (function main() {
-  const incoming = receive.get();
+  const incoming = receive.get().trim();
   receive.writeLine(util.timeToString());
   receive.writeLine('receive -> ' + incoming, 'green');
 
@@ -62,6 +62,10 @@ export default function AutomationAssistant() {
   const [logs, setLogs] = React.useState<AutomationLogEntry[]>(
     data.state.logs || []
   );
+  const [receiveMessage, setReceiveMessage] = React.useState<string>("");
+  const [receiveColor, setReceiveColor] = React.useState<string>("");
+  const [receiveBusy, setReceiveBusy] = React.useState<boolean>(false);
+  const [receiveError, setReceiveError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const es = new EventSource("/api/automation/stream");
@@ -134,6 +138,61 @@ export default function AutomationAssistant() {
     setLogs([]);
   }
 
+  async function sendReceive(kind: "write" | "writeLine") {
+    if (!receiveMessage.trim()) return;
+    if (!selectedPort) {
+      setReceiveError("Select a port first");
+      return;
+    }
+    setReceiveBusy(true);
+    setReceiveError(null);
+    try {
+      const base = `/api/ports/${encodeURIComponent(selectedPort)}/receive`;
+      const endpoint = `${base}/${kind === "writeLine" ? "write-line" : "write"}`;
+      const trimmedColor = receiveColor.trim();
+      const payload: { message: string; color?: string } = {
+        message: receiveMessage,
+      };
+      if (trimmedColor) payload.color = trimmedColor;
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `Failed to ${kind}`);
+      }
+      setReceiveMessage("");
+    } catch (err) {
+      setReceiveError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setReceiveBusy(false);
+    }
+  }
+
+  async function invokeReceive(command: "clear" | "clear-last") {
+    if (!selectedPort) {
+      setReceiveError("Select a port first");
+      return;
+    }
+    setReceiveBusy(true);
+    setReceiveError(null);
+    try {
+      const base = `/api/ports/${encodeURIComponent(selectedPort)}/receive`;
+      const endpoint = `${base}/${command === "clear" ? "clear" : "clear-last"}`;
+      const res = await fetch(endpoint, { method: "POST" });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `Failed to ${command}`);
+      }
+    } catch (err) {
+      setReceiveError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setReceiveBusy(false);
+    }
+  }
+
   return (
     <main className="p-4 container mx-auto space-y-6">
       <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -188,6 +247,67 @@ export default function AutomationAssistant() {
           {lastError}
         </div>
       )}
+
+      <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+          <h2 className="text-lg font-medium">Receive Console</h2>
+          {receiveError && (
+            <span className="text-xs text-red-600">{receiveError}</span>
+          )}
+        </div>
+        <div className="flex flex-col gap-2 md:flex-row md:items-center">
+          <input
+            value={receiveMessage}
+            onChange={(e) => setReceiveMessage(e.target.value)}
+            placeholder="Message"
+            className="flex-1 rounded border border-gray-300 px-3 py-2 text-sm"
+          />
+          <input
+            value={receiveColor}
+            onChange={(e) => setReceiveColor(e.target.value)}
+            placeholder="Color (optional)"
+            className="rounded border border-gray-300 px-3 py-2 text-sm md:w-48"
+          />
+        </div>
+        <div className="flex flex-wrap gap-2 text-sm">
+          <button
+            onClick={() => sendReceive("write")}
+            disabled={
+              receiveBusy || !receiveMessage.trim() || !selectedPort
+            }
+            className="rounded border border-gray-300 px-2 py-1 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Write
+          </button>
+          <button
+            onClick={() => sendReceive("writeLine")}
+            disabled={
+              receiveBusy || !receiveMessage.trim() || !selectedPort
+            }
+            className="rounded border border-gray-300 px-2 py-1 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Write Line
+          </button>
+          <button
+            onClick={() => invokeReceive("clear")}
+            disabled={receiveBusy || !selectedPort}
+            className="rounded border border-gray-300 px-2 py-1 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Clear
+          </button>
+          <button
+            onClick={() => invokeReceive("clear-last")}
+            disabled={receiveBusy || !selectedPort}
+            className="rounded border border-gray-300 px-2 py-1 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Clear Last
+          </button>
+        </div>
+        <p className="text-xs text-gray-500">
+          These APIs mirror the Serial Debug Assistant helpers so other tools can call
+          them directly.
+        </p>
+      </section>
 
       <section className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <div className="space-y-3">
