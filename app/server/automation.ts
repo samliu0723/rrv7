@@ -19,6 +19,7 @@ export type AutomationLogEntry = {
   type: AutomationLogType;
   message: string;
   color?: string;
+  portId: PortId | null;
 };
 
 export interface AutomationState {
@@ -63,6 +64,7 @@ class AutomationManager {
       type,
       message,
       color,
+      portId: this.targetPort,
     });
   }
 
@@ -159,8 +161,12 @@ class AutomationManager {
   }
 
   private pushLog(entry: AutomationLogEntry) {
-    this.logs = [...this.logs.slice(-(MAX_LOG_ENTRIES - 1)), entry];
-    this.emitter.emit("log", entry);
+    const normalized: AutomationLogEntry = {
+      ...entry,
+      portId: entry.portId ?? this.targetPort ?? null,
+    };
+    this.logs = [...this.logs.slice(-(MAX_LOG_ENTRIES - 1)), normalized];
+    this.emitter.emit("log", normalized);
   }
 
   private emitState() {
@@ -390,7 +396,7 @@ class AutomationManager {
 
 export const automationManager = new AutomationManager();
 
-export function automationSseStream() {
+export function automationSseStream(portFilter?: PortId) {
   const heartbeatMs = Number(process.env.SSE_HEARTBEAT_MS ?? 15000);
   const encoder = new TextEncoder();
   let stop: (() => void) | null = null;
@@ -405,22 +411,32 @@ export function automationSseStream() {
         );
       };
 
-      automationManager.getState().logs.forEach((entry) =>
-        sendEvent("log", entry)
-      );
-      sendEvent("state", automationManager.getState());
+      const shouldSendLog = (entry: AutomationLogEntry) => {
+        if (!portFilter) return true;
+        if (!entry.portId) return true;
+        return entry.portId === portFilter;
+      };
 
-      const unsubLog = automationManager.onLog((entry) =>
-        sendEvent("log", entry)
-      );
-      const unsubState = automationManager.onState((state) =>
+      const sendLog = (entry: AutomationLogEntry) => {
+        if (!shouldSendLog(entry)) return;
+        sendEvent("log", entry);
+      };
+
+      const sendState = (state: AutomationState) => {
         sendEvent("state", {
           script: state.script,
           enabled: state.enabled,
           portId: state.portId,
           lastError: state.lastError,
-        })
-      );
+        });
+      };
+
+      const initialState = automationManager.getState();
+      initialState.logs.forEach(sendLog);
+      sendState(initialState);
+
+      const unsubLog = automationManager.onLog(sendLog);
+      const unsubState = automationManager.onState(sendState);
 
       const interval = setInterval(() => {
         controller.enqueue(encoder.encode(`: ping\n\n`));

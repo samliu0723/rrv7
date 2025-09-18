@@ -196,6 +196,12 @@ export default function PortConsole() {
             <option value="text">RX: Text</option>
             <option value="hex">RX: Hex</option>
           </select>
+          <Link
+            to={id ? `/ports/${encodeURIComponent(id)}/script` : "/ports"}
+            className="px-2 py-1 rounded border border-gray-300 hover:bg-gray-50"
+          >
+            Script
+          </Link>
         </div>
       </header>
 

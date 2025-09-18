@@ -4,7 +4,7 @@ export default [
   index("routes/home.tsx"),
   route("ports", "routes/ports.tsx"),
   route("ports/:id", "routes/ports.$id.tsx"),
-  route("automation", "routes/automation.tsx"),
+  route("ports/:id/script", "routes/ports.$id.script.tsx"),
   route("api/ports", "routes/api.ports.ts"),
   route("api/ports/:id/open", "routes/api.ports.$id.open.ts"),
   route("api/ports/:id/close", "routes/api.ports.$id.close.ts"),
@@ -21,9 +21,21 @@ export default [
     "api/ports/:id/receive/clear-last",
     "routes/api.ports.$id.receive.clear-last.ts"
   ),
-  route("api/automation/state", "routes/api.automation.state.ts"),
-  route("api/automation/script", "routes/api.automation.script.ts"),
-  route("api/automation/enable", "routes/api.automation.enable.ts"),
-  route("api/automation/disable", "routes/api.automation.disable.ts"),
-  route("api/automation/stream", "routes/api.automation.stream.ts"),
+  route(
+    "api/ports/:id/automation/state",
+    "routes/api.ports.$id.automation.state.ts"
+  ),
+  route(
+    "api/ports/:id/automation/enable",
+    "routes/api.ports.$id.automation.enable.ts"
+  ),
+  route(
+    "api/ports/:id/automation/disable",
+    "routes/api.ports.$id.automation.disable.ts"
+  ),
+  route(
+    "api/ports/:id/automation/stream",
+    "routes/api.ports.$id.automation.stream.ts"
+  ),
+  route("api/ports/:id/script", "routes/api.ports.$id.script.ts"),
 ] satisfies RouteConfig;
