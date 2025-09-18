@@ -150,6 +150,12 @@ export default function PortConsole() {
             ← All Ports
           </Link>
           <h1 className="text-2xl font-semibold">Port: {id}</h1>
+          <Link
+            className="text-sm text-blue-600 hover:underline"
+            to={`/ports/${id}/automation`}
+          >
+            Automation
+          </Link>
           <span
             className={`text-xs px-2 py-0.5 rounded-full ${
               open ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"

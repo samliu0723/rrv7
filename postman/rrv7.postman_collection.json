@@ -124,19 +124,19 @@
       }
     },
     {
-      "name": "Automation · Get State",
+      "name": "Port Automation · Get State",
       "request": {
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "{{baseUrl}}/api/automation/state",
+          "raw": "{{baseUrl}}/api/ports/{{portId}}/automation/state",
           "host": ["{{baseUrl}}"],
-          "path": ["api", "automation", "state"]
+          "path": ["api", "ports", "{{portId}}", "automation", "state"]
         }
       }
     },
     {
-      "name": "Automation · Save Script",
+      "name": "Port Automation · Save Script",
       "request": {
         "method": "POST",
         "header": [
@@ -147,53 +147,46 @@
           "raw": "{\n  \"script\": \"// paste your automation script here\"\n}"
         },
         "url": {
-          "raw": "{{baseUrl}}/api/automation/script",
+          "raw": "{{baseUrl}}/api/ports/{{portId}}/automation/script",
           "host": ["{{baseUrl}}"],
-          "path": ["api", "automation", "script"]
+          "path": ["api", "ports", "{{portId}}", "automation", "script"]
         }
       }
     },
     {
-      "name": "Automation · Enable",
+      "name": "Port Automation · Enable",
       "request": {
         "method": "POST",
-        "header": [
-          { "key": "Content-Type", "value": "application/json" }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"portId\": \"{{portId}}\"\n}"
-        },
         "url": {
-          "raw": "{{baseUrl}}/api/automation/enable",
+          "raw": "{{baseUrl}}/api/ports/{{portId}}/automation/enable",
           "host": ["{{baseUrl}}"],
-          "path": ["api", "automation", "enable"]
+          "path": ["api", "ports", "{{portId}}", "automation", "enable"]
         }
       }
     },
     {
-      "name": "Automation · Disable",
+      "name": "Port Automation · Disable",
       "request": {
         "method": "POST",
         "header": [],
         "url": {
-          "raw": "{{baseUrl}}/api/automation/disable",
+          "raw": "{{baseUrl}}/api/ports/{{portId}}/automation/disable",
           "host": ["{{baseUrl}}"],
-          "path": ["api", "automation", "disable"]
+          "path": ["api", "ports", "{{portId}}", "automation", "disable"]
         }
       }
     },
     {
-      "name": "Automation · Stream (SSE)",
+      "name": "Port Automation · Stream (SSE)",
       "request": {
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "{{baseUrl}}/api/automation/stream",
+          "raw": "{{baseUrl}}/api/ports/{{portId}}/automation/stream",
           "host": ["{{baseUrl}}"],
-          "path": ["api", "automation", "stream"]
+          "path": ["api", "ports", "{{portId}}", "automation", "stream"]
         },
-        "description": "Postman does not render SSE streams. Use a browser tab or curl: `curl -N {{baseUrl}}/api/automation/stream`"
+        "description": "Postman does not render SSE streams. Use a browser tab or curl: `curl -N {{baseUrl}}/api/ports/{{portId}}/automation/stream`"
       }
     }
   ]

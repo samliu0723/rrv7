@@ -36,20 +36,12 @@ export default function Ports() {
     <main className="p-4 container mx-auto space-y-6">
       <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold">RS485 Ports</h1>
-        <div className="flex gap-2">
-          <Link
-            to="/automation"
-            className="px-2 py-1 rounded border border-gray-300 hover:bg-gray-50 text-sm"
-          >
-            Automation
-          </Link>
-          <button
-            className="px-2 py-1 rounded border border-gray-300 hover:bg-gray-50 text-sm"
-            onClick={refresh}
-          >
-            Refresh
-          </button>
-        </div>
+        <button
+          className="px-2 py-1 rounded border border-gray-300 hover:bg-gray-50 text-sm"
+          onClick={refresh}
+        >
+          Refresh
+        </button>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -68,12 +60,18 @@ export default function Ports() {
                 {p.open ? "OPEN" : "CLOSED"}
               </span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Link
                 to={`/ports/${p.id}`}
                 className="px-3 py-1.5 rounded bg-blue-600 text-white hover:bg-blue-700"
               >
                 Open Console
+              </Link>
+              <Link
+                to={`/ports/${p.id}/automation`}
+                className="px-3 py-1.5 rounded border border-gray-300 hover:bg-gray-50"
+              >
+                Automation
               </Link>
               {p.open ? (
                 <button

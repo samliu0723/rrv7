@@ -1,6 +1,6 @@
-import type { Route } from "./+types/automation";
+import type { Route } from "./+types/ports.$id.automation";
 import React from "react";
-import { Link, useLoaderData } from "react-router";
+import { Link, useLoaderData, useNavigate } from "react-router";
 
 import type { AutomationLogEntry } from "../server/automation";
 
@@ -31,6 +31,8 @@ const commands = [
 })();`;
 
 type LoaderData = {
+  port: { id: string; path: string; open: boolean };
+  ports: Array<{ id: string; path: string; open: boolean }>;
   state: {
     script: string;
     enabled: boolean;
@@ -38,24 +40,34 @@ type LoaderData = {
     lastError: string | null;
     logs: AutomationLogEntry[];
   };
-  ports: Array<{ id: string; path: string; open: boolean }>;
 };
 
-export async function loader({}: Route.LoaderArgs) {
-  const { automationManager } = await import("../server/automation");
+export async function loader({ params }: Route.LoaderArgs) {
+  const id = params.id;
+  if (!id) throw new Response("Missing id", { status: 400 });
+
   const { serialManager } = await import("../server/serial");
-  const state = automationManager.getState();
   const ports = serialManager.list();
-  return Response.json({ state, ports } satisfies LoaderData);
+  const port = ports.find((p) => p.id === id);
+  if (!port) throw new Response("Port not found", { status: 404 });
+
+  const { automationManager } = await import("../server/automation");
+  const state = automationManager.getState();
+  return Response.json({ port, ports, state } satisfies LoaderData);
 }
 
-export default function AutomationAssistant() {
+export default function PortAutomationAssistant() {
   const data = useLoaderData() as LoaderData;
+  const { port } = data;
+  const navigate = useNavigate();
+
   const [script, setScript] = React.useState<string>(data.state.script);
-  const [selectedPort, setSelectedPort] = React.useState<string>(
-    data.state.portId || (data.ports[0]?.id ?? "")
+  const [globalEnabled, setGlobalEnabled] = React.useState<boolean>(
+    data.state.enabled
   );
-  const [enabled, setEnabled] = React.useState<boolean>(data.state.enabled);
+  const [activePortId, setActivePortId] = React.useState<string | null>(
+    data.state.portId
+  );
   const [lastError, setLastError] = React.useState<string | null>(
     data.state.lastError
   );
@@ -66,9 +78,14 @@ export default function AutomationAssistant() {
   const [receiveColor, setReceiveColor] = React.useState<string>("");
   const [receiveBusy, setReceiveBusy] = React.useState<boolean>(false);
   const [receiveError, setReceiveError] = React.useState<string | null>(null);
+  const [actionError, setActionError] = React.useState<string | null>(null);
+
+  const enabledHere = globalEnabled && activePortId === port.id;
 
   React.useEffect(() => {
-    const es = new EventSource("/api/automation/stream");
+    const es = new EventSource(
+      `/api/ports/${encodeURIComponent(port.id)}/automation/stream`
+    );
     es.addEventListener("log", (evt) => {
       try {
         const entry = JSON.parse(evt.data);
@@ -90,10 +107,10 @@ export default function AutomationAssistant() {
       try {
         const state = JSON.parse(evt.data);
         if (typeof state.enabled === "boolean") {
-          setEnabled(state.enabled);
+          setGlobalEnabled(state.enabled);
         }
         if (Object.prototype.hasOwnProperty.call(state, "portId")) {
-          setSelectedPort((current) => state.portId ?? current);
+          setActivePortId(state.portId ?? null);
         }
         setLastError(state.lastError ?? null);
         if (typeof state.script === "string") {
@@ -107,27 +124,62 @@ export default function AutomationAssistant() {
       setLastError((err) => err ?? "Automation stream disconnected");
     };
     return () => es.close();
-  }, []);
+  }, [port.id]);
 
   async function saveScript() {
-    await fetch("/api/automation/script", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ script }),
-    });
+    setActionError(null);
+    try {
+      const res = await fetch(
+        `/api/ports/${encodeURIComponent(port.id)}/automation/script`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ script }),
+        }
+      );
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Failed to save script");
+      }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err));
+    }
   }
 
   async function enableAutomation() {
-    if (!selectedPort) return;
-    await fetch("/api/automation/enable", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ portId: selectedPort }),
-    });
+    setActionError(null);
+    try {
+      const res = await fetch(
+        `/api/ports/${encodeURIComponent(port.id)}/automation/enable`,
+        {
+          method: "POST",
+        }
+      );
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Failed to enable automation");
+      }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err));
+    }
   }
 
   async function disableAutomation() {
-    await fetch("/api/automation/disable", { method: "POST" });
+    setActionError(null);
+    try {
+      const res = await fetch(
+        `/api/ports/${encodeURIComponent(port.id)}/automation/disable`,
+        {
+          method: "POST",
+        }
+      );
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Failed to disable automation");
+      }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err));
+    }
   }
 
   function loadSample() {
@@ -140,14 +192,14 @@ export default function AutomationAssistant() {
 
   async function sendReceive(kind: "write" | "writeLine") {
     if (!receiveMessage.trim()) return;
-    if (!selectedPort) {
-      setReceiveError("Select a port first");
+    if (!enabledHere) {
+      setReceiveError("Automation is not active on this port");
       return;
     }
     setReceiveBusy(true);
     setReceiveError(null);
     try {
-      const base = `/api/ports/${encodeURIComponent(selectedPort)}/receive`;
+      const base = `/api/ports/${encodeURIComponent(port.id)}/automation/receive`;
       const endpoint = `${base}/${kind === "writeLine" ? "write-line" : "write"}`;
       const trimmedColor = receiveColor.trim();
       const payload: { message: string; color?: string } = {
@@ -172,14 +224,14 @@ export default function AutomationAssistant() {
   }
 
   async function invokeReceive(command: "clear" | "clear-last") {
-    if (!selectedPort) {
-      setReceiveError("Select a port first");
+    if (!enabledHere) {
+      setReceiveError("Automation is not active on this port");
       return;
     }
     setReceiveBusy(true);
     setReceiveError(null);
     try {
-      const base = `/api/ports/${encodeURIComponent(selectedPort)}/receive`;
+      const base = `/api/ports/${encodeURIComponent(port.id)}/automation/receive`;
       const endpoint = `${base}/${command === "clear" ? "clear" : "clear-last"}`;
       const res = await fetch(endpoint, { method: "POST" });
       if (!res.ok) {
@@ -196,23 +248,43 @@ export default function AutomationAssistant() {
   return (
     <main className="p-4 container mx-auto space-y-6">
       <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-3">
-          <Link className="text-blue-600 hover:underline" to="/ports">
-            ← Ports
-          </Link>
-          <h1 className="text-2xl font-semibold">Automation Assistant</h1>
-          <span
-            className={`text-xs px-2 py-0.5 rounded-full ${
-              enabled ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
-            }`}
-          >
-            {enabled ? "ENABLED" : "DISABLED"}
-          </span>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-3">
+            <Link className="text-blue-600 hover:underline" to={`/ports/${port.id}`}>
+              ← Port Console
+            </Link>
+            <h1 className="text-2xl font-semibold">Automation: {port.id}</h1>
+            <span
+              className={`text-xs px-2 py-0.5 rounded-full ${
+                enabledHere
+                  ? "bg-green-100 text-green-700"
+                  : globalEnabled
+                  ? "bg-amber-100 text-amber-700"
+                  : "bg-gray-100 text-gray-600"
+              }`}
+            >
+              {enabledHere
+                ? "ENABLED"
+                : globalEnabled && activePortId
+                ? `ON ${activePortId}`
+                : "DISABLED"}
+            </span>
+          </div>
+          {globalEnabled && activePortId && activePortId !== port.id && (
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+              Automation is currently active on port {activePortId}. Disable it there before enabling {port.id}.
+            </p>
+          )}
+          {actionError && (
+            <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">
+              {actionError}
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <select
-            value={selectedPort}
-            onChange={(e) => setSelectedPort(e.target.value)}
+            value={port.id}
+            onChange={(e) => navigate(`/ports/${encodeURIComponent(e.target.value)}/automation`)}
             className="px-2 py-1 rounded border border-gray-300"
           >
             {data.ports.map((p) => (
@@ -223,13 +295,15 @@ export default function AutomationAssistant() {
           </select>
           <button
             onClick={enableAutomation}
-            className="px-2 py-1 rounded border border-gray-300 hover:bg-gray-50"
+            disabled={enabledHere}
+            className="px-2 py-1 rounded border border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Enable
           </button>
           <button
             onClick={disableAutomation}
-            className="px-2 py-1 rounded border border-gray-300 hover:bg-gray-50"
+            disabled={!enabledHere}
+            className="px-2 py-1 rounded border border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Disable
           </button>
@@ -272,40 +346,35 @@ export default function AutomationAssistant() {
         <div className="flex flex-wrap gap-2 text-sm">
           <button
             onClick={() => sendReceive("write")}
-            disabled={
-              receiveBusy || !receiveMessage.trim() || !selectedPort
-            }
+            disabled={receiveBusy || !receiveMessage.trim() || !enabledHere}
             className="rounded border border-gray-300 px-2 py-1 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Write
           </button>
           <button
             onClick={() => sendReceive("writeLine")}
-            disabled={
-              receiveBusy || !receiveMessage.trim() || !selectedPort
-            }
+            disabled={receiveBusy || !receiveMessage.trim() || !enabledHere}
             className="rounded border border-gray-300 px-2 py-1 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Write Line
           </button>
           <button
             onClick={() => invokeReceive("clear")}
-            disabled={receiveBusy || !selectedPort}
+            disabled={receiveBusy || !enabledHere}
             className="rounded border border-gray-300 px-2 py-1 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Clear
           </button>
           <button
             onClick={() => invokeReceive("clear-last")}
-            disabled={receiveBusy || !selectedPort}
+            disabled={receiveBusy || !enabledHere}
             className="rounded border border-gray-300 px-2 py-1 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Clear Last
           </button>
         </div>
         <p className="text-xs text-gray-500">
-          These APIs mirror the Serial Debug Assistant helpers so other tools can call
-          them directly.
+          These APIs mirror the Serial Debug Assistant helpers so other tools can call them directly.
         </p>
       </section>
 
