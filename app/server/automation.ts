@@ -4,23 +4,11 @@ import { setTimeout as sleepTimeout } from "node:timers/promises";
 import vm from "node:vm";
 
 import type { PortId } from "./serial";
+import { portConsole, type PortLogEntry, type PortLogType } from "./port-console";
+import { portService } from "./port-service";
 import { serialManager } from "./serial";
 
-type AutomationLogType =
-  | "info"
-  | "receive"
-  | "send"
-  | "console"
-  | "error"
-  | "alert";
-
-export type AutomationLogEntry = {
-  ts: number;
-  type: AutomationLogType;
-  message: string;
-  color?: string;
-  portId: PortId | null;
-};
+export type AutomationLogEntry = PortLogEntry;
 
 export interface AutomationState {
   script: string;
@@ -30,7 +18,6 @@ export interface AutomationState {
   logs: AutomationLogEntry[];
 }
 
-const MAX_LOG_ENTRIES = 200;
 const SCRIPT_TIMEOUT_MS = 1000;
 
 function blockSleep(ms: number) {
@@ -47,42 +34,26 @@ class AutomationManager {
   private targetPort: PortId | null = null;
   private unsub: (() => void) | null = null;
   private emitter = new EventEmitter();
-  private logs: AutomationLogEntry[] = [];
   private lastError: string | null = null;
 
   constructor() {
     this.emitter.setMaxListeners(50);
   }
 
-  private pushLogEntry(
-    type: AutomationLogType,
-    message: string,
-    color?: string
-  ) {
-    this.pushLog({
-      ts: Date.now(),
-      type,
-      message,
-      color,
-      portId: this.targetPort,
-    });
-  }
-
   receiveWrite(message: string, color?: string) {
-    this.pushLogEntry("receive", message, color);
+    portService.receiveWrite(this.targetPort, message, color);
   }
 
   receiveWriteLine(message: string, color?: string) {
-    const normalized = message.endsWith("\n") ? message : `${message}\n`;
-    this.receiveWrite(normalized, color);
+    portService.receiveWriteLine(this.targetPort, message, color);
   }
 
   receiveClear() {
-    this.pushLogEntry("receive", "[clear]");
+    portService.receiveClear(this.targetPort);
   }
 
   receiveClearLast() {
-    this.pushLogEntry("receive", "[clear-last]");
+    portService.receiveClearLast(this.targetPort);
   }
 
   getState(): AutomationState {
@@ -91,7 +62,7 @@ class AutomationManager {
       enabled: this.enabled,
       portId: this.targetPort,
       lastError: this.lastError,
-      logs: [...this.logs],
+      logs: portConsole.getLogs(),
     };
   }
 
@@ -110,20 +81,23 @@ class AutomationManager {
     this.enabled = true;
     this.lastError = null;
     this.subscribe(portId);
-    this.pushLogEntry("info", `Automation enabled on ${portId}`);
+    portConsole.log("info", `Automation enabled on ${portId}`, {
+      portId,
+    });
     this.emitState();
   }
 
   disable() {
     this.enabled = false;
     this.unsubscribe();
-    this.pushLogEntry("info", "Automation disabled");
+    portConsole.log("info", "Automation disabled", {
+      portId: this.targetPort,
+    });
     this.emitState();
   }
 
   onLog(cb: (entry: AutomationLogEntry) => void) {
-    this.emitter.on("log", cb);
-    return () => this.emitter.off("log", cb);
+    return portConsole.onLog(cb);
   }
 
   onState(cb: (state: AutomationState) => void) {
@@ -142,7 +116,10 @@ class AutomationManager {
       const message = err instanceof Error ? err.message : String(err);
       this.lastError = message;
       this.compiled = null;
-      this.pushLogEntry("error", `Compile error: ${message}`);
+      portConsole.log("error", `Compile error: ${message}`, {
+        portId: this.targetPort,
+        color: "red",
+      });
     }
   }
 
@@ -160,15 +137,6 @@ class AutomationManager {
     }
   }
 
-  private pushLog(entry: AutomationLogEntry) {
-    const normalized: AutomationLogEntry = {
-      ...entry,
-      portId: entry.portId ?? this.targetPort ?? null,
-    };
-    this.logs = [...this.logs.slice(-(MAX_LOG_ENTRIES - 1)), normalized];
-    this.emitter.emit("log", normalized);
-  }
-
   private emitState() {
     this.emitter.emit("state", this.getState());
   }
@@ -180,10 +148,10 @@ class AutomationManager {
     const dataBytes = Buffer.from(dataString, "utf8");
 
     const log = (
-      type: AutomationLogType,
+      type: PortLogType,
       message: string,
       color?: string
-    ) => this.pushLogEntry(type, message, color);
+    ) => portConsole.log(type, message, { portId, color });
 
     const receive = {
       isFrameStart: false,
@@ -215,19 +183,15 @@ class AutomationManager {
         if (isHexStr) {
           const clean = value.replace(/[^0-9a-fA-F]/g, "");
           if (!clean) return;
-          const buf = Buffer.from(clean, "hex");
-          await serialManager.write(portId, buf);
-          log("send", `HEX ${clean.toUpperCase()}`);
+          await portService.sendHex(portId, clean);
         } else {
-          await serialManager.write(portId, value);
-          log("send", value);
+          await portService.sendText(portId, value);
         }
       },
       writeBytes: async (arr: unknown) => {
         const buf = this.normalizeBytes(arr);
         if (!buf) return;
-        await serialManager.write(portId, buf);
-        log("send", `BYTES ${buf.toString("hex")}`);
+        await portService.sendBytes(portId, buf);
       },
       writeToReceive: (value: string, color?: string) =>
         receive.write(value, color),
@@ -359,7 +323,7 @@ class AutomationManager {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       this.lastError = message;
-      log("error", message, "red");
+      portConsole.log("error", message, { portId, color: "red" });
       this.emitState();
     }
   }
@@ -381,7 +345,7 @@ class AutomationManager {
 
   private timerEnd(
     label: string,
-    log: (type: AutomationLogType, message: string) => void
+    log: (type: PortLogType, message: string) => void
   ) {
     const start = this.timerMap.get(label);
     if (typeof start === "number") {
@@ -395,6 +359,23 @@ class AutomationManager {
 }
 
 export const automationManager = new AutomationManager();
+
+export function ensureAutomationActiveForPort(portId: PortId) {
+  const state = automationManager.getState();
+  if (!state.enabled) {
+    return {
+      ok: false as const,
+      reason: "Automation is disabled",
+    };
+  }
+  if (state.portId && state.portId !== portId) {
+    return {
+      ok: false as const,
+      reason: `Automation is active on ${state.portId}`,
+    };
+  }
+  return { ok: true as const };
+}
 
 export function automationSseStream(portFilter?: PortId) {
   const heartbeatMs = Number(process.env.SSE_HEARTBEAT_MS ?? 15000);

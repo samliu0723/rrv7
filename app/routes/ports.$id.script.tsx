@@ -87,27 +87,6 @@ export default function PortAutomationScript() {
 
   React.useEffect(() => {
     const es = new EventSource(`/api/ports/${encodedPortId}/automation/stream`);
-    es.addEventListener("log", (evt) => {
-      try {
-        const entry = JSON.parse(evt.data) as AutomationLogEntry;
-        if (!isRelevantLog(entry)) return;
-        setLogs((prev) => {
-          const last = prev[prev.length - 1];
-          if (
-            last &&
-            last.ts === entry.ts &&
-            last.type === entry.type &&
-            last.message === entry.message &&
-            last.color === entry.color
-          ) {
-            return prev;
-          }
-          return [...prev.slice(-199), entry];
-        });
-      } catch {
-        // ignore malformed events
-      }
-    });
     es.addEventListener("state", (evt) => {
       try {
         const state = JSON.parse(evt.data) as Partial<AutomationState>;
@@ -128,6 +107,35 @@ export default function PortAutomationScript() {
     });
     es.onerror = () => {
       setLastError((err) => err ?? "Automation stream disconnected");
+    };
+    return () => es.close();
+  }, [encodedPortId]);
+
+  React.useEffect(() => {
+    const es = new EventSource(`/api/ports/${encodedPortId}/stream`);
+    es.addEventListener("console-log", (evt) => {
+      try {
+        const entry = JSON.parse(evt.data) as AutomationLogEntry;
+        if (!isRelevantLog(entry)) return;
+        setLogs((prev) => {
+          const last = prev[prev.length - 1];
+          if (
+            last &&
+            last.ts === entry.ts &&
+            last.type === entry.type &&
+            last.message === entry.message &&
+            last.color === entry.color
+          ) {
+            return prev;
+          }
+          return [...prev.slice(-199), entry];
+        });
+      } catch {
+        // ignore malformed events
+      }
+    });
+    es.onerror = () => {
+      setLastError((err) => err ?? "Port stream disconnected");
     };
     return () => es.close();
   }, [encodedPortId, isRelevantLog]);

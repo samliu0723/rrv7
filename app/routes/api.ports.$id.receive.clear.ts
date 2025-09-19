@@ -1,18 +1,13 @@
-import { automationManager } from "../server/automation";
+import { ensureAutomationActiveForPort } from "../server/automation";
+import { portService } from "../server/port-service";
 
 export function action({ params }: { params: { id?: string } }) {
   const id = params.id;
   if (!id) return new Response("Missing id", { status: 400 });
-  const state = automationManager.getState();
-  if (!state.enabled) {
-    return new Response("Automation is disabled", { status: 409 });
+  const guard = ensureAutomationActiveForPort(id);
+  if (!guard.ok) {
+    return new Response(guard.reason, { status: 409 });
   }
-  if (state.portId !== id) {
-    const message = state.portId
-      ? `Automation is active on ${state.portId}, not ${id}`
-      : "Automation is not enabled on this port";
-    return new Response(message, { status: 409 });
-  }
-  automationManager.receiveClear();
+  portService.receiveClear(id);
   return Response.json({ ok: true, id });
 }
