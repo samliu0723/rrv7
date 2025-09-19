@@ -1,6 +1,7 @@
 import { EventEmitter } from "node:events";
 import { existsSync } from "node:fs";
 import { ReadableStream as WebReadableStream } from "node:stream/web";
+import { portConsole, type PortLogEntry } from "./port-console";
 
 // Lazy import to ensure server-only usage and avoid bundling in client
 let SerialPortMod: typeof import("serialport") | undefined;
@@ -184,6 +185,19 @@ export function sseStreamForPort(id: PortId) {
         send("baud", b)
       );
 
+      const shouldSendConsole = (entry: PortLogEntry) =>
+        !entry.portId || entry.portId === id;
+      portConsole.getLogs(id).forEach((entry) => {
+        if (shouldSendConsole(entry)) {
+          send("console-log", entry);
+        }
+      });
+      const unsubConsole = portConsole.onLog((entry) => {
+        if (shouldSendConsole(entry)) {
+          send("console-log", entry);
+        }
+      });
+
       const iv = setInterval(
         () => controller.enqueue(encoder.encode(`: ping\n\n`)),
         heartbeatMs
@@ -194,6 +208,7 @@ export function sseStreamForPort(id: PortId) {
         unsubClose();
         unsubErr();
         unsubBaud();
+        unsubConsole();
         clearInterval(iv);
         controller.close();
       };

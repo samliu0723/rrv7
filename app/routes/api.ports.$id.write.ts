@@ -1,4 +1,4 @@
-import { serialManager } from "../server/serial";
+import { portService } from "../server/port-service";
 
 export async function action({ params, request }: { params: { id?: string }; request: Request }) {
   const id = params.id;
@@ -11,11 +11,9 @@ export async function action({ params, request }: { params: { id?: string }; req
   const hex: string | undefined = body?.hex;
   try {
     if (typeof text === "string") {
-      await serialManager.write(id, text);
+      await portService.sendText(id, text);
     } else if (typeof hex === "string") {
-      const clean = hex.replace(/[^0-9a-fA-F]/g, "");
-      const buf = Buffer.from(clean, "hex");
-      await serialManager.write(id, buf);
+      await portService.sendHex(id, hex);
     } else {
       return new Response("Missing 'text' or 'hex'", { status: 400 });
     }
